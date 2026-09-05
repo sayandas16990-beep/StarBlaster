@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- App Strings -->
     <string name="app_name">⭐ Star Blaster</string>
     <string name="app_description">Catch the stars before time runs out! Fast-paced arcade game with increasing difficulty.</string>
+    
+    <!-- UI Labels -->
+    <string name="score_label">SCORE</string>
+    <string name="time_label">TIME</string>
+    <string name="best_label">BEST</string>
+    <string name="pause_btn">PAUSE</string>
+    <string name="resume_btn">RESUME</string>
+    <string name="start_btn">START GAME 🚀</string>
+    <string name="play_again_btn">PLAY AGAIN 🔄</string>
+    <string name="reset_best_btn">RESET BEST</string>
+    <string name="how_btn">HOW</string>
+    
+    <!-- Game Messages -->
+    <string name="game_title">⭐ Star Blaster</string>
+    <string name="game_tagline">Catch the stars before time runs out!</string>
+    <string name="game_over_title">🎉 Great Job!</string>
+    <string name="your_score">Your score:</string>
+    <string name="help_text">Tap/click stars to score. Space toggles pause. Try to get the highest score!</string>
+    <string name="controls_info">Tap or click the ⭐ stars to score points. Press Space to pause/resume.</string>
 </resources>
