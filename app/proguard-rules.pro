@@ -1,0 +1,4 @@
+-keep class androidx.** { *; }
+-keep class android.** { *; }
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile

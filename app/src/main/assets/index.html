@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>⭐ Star Blaster</title>
+<style>
+* { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
+html,body { height:100%; margin:0; font-family:Arial, sans-serif; background:linear-gradient(135deg,#5b2cff,#00c6ff); }
+.game { width:min(95vw,700px); height:min(95vh,850px); background:#111936; border:5px solid white; border-radius:25px; overflow:hidden; box-shadow:0 15px 40px #0008; margin:3vh auto; position:relative; display:flex; flex-direction:column; }
+.top { height:90px; padding:12px; display:flex; justify-content:space-around; align-items:center; color:white; background:#202957; }
+.info { text-align:center; font-size:15px; }
+.value { display:block; font-size:25px; font-weight:bold; color:#ffe66d; }
+#arena { position:relative; flex:1; overflow:hidden; background:
+  radial-gradient(circle at 20% 20%, #ffffff22 2px, transparent 3px),
+  radial-gradient(circle at 70% 40%, #ffffff18 2px, transparent 3px),
+  radial-gradient(circle at 40% 80%, #ffffff15 2px, transparent 3px),
+  #080d27; background-size:100px 100px; }
+.star { position:absolute; border:none; background:#ffd83d; clip-path:polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 95%,50% 72%,21% 95%,32% 57%,2% 35%,39% 35%); filter:drop-shadow(0 0 12px #ffe66d); cursor:pointer; transform-origin:center; }
+.star:active { transform:scale(.8); }
+.star-pop { animation:starPop .15s ease-out forwards; }
+@keyframes starPop { from { transform:scale(0); } to { transform:scale(1); } }
+.pop { position:absolute; color:white; font-size:20px; font-weight:bold; pointer-events:none; animation:pop .6s forwards; }
+@keyframes pop { 0% { opacity:1; transform:translateY(0) scale(1); } 100% { opacity:0; transform:translateY(-60px) scale(1.4); } }
+.start-screen, .game-over { position:absolute; inset:0; background:#080d27ee; display:flex; flex-direction:column; justify-content:center; align-items:center; color:white; text-align:center; padding:25px; z-index:10; }
+.game-over { display:none; }
+h1 { font-size:48px; margin:10px; color:#ffe66d; text-shadow:0 0 20px #ffdf35; }
+p { font-size:18px; }
+button.primary { border:none; border-radius:50px; padding:12px 26px; font-size:18px; font-weight:bold; background:#ff4fa3; color:white; cursor:pointer; box-shadow:0 6px 0 #b7286e; }
+button.primary:active { transform:translateY(4px); box-shadow:0 1px 0 #b7286e; }
+.controls { display:flex; gap:10px; align-items:center; }
+.small { margin-top:12px; font-size:13px; opacity:.85; }
+@media (max-width:420px){ h1{font-size:34px;} .value{font-size:20px;} .top{padding:10px;} }
+</style>
+</head>
+<body>
+<div class="game" aria-label="Star Blaster game">
+  <div class="top" role="region" aria-label="Game stats">
+    <div class="info">SCORE <span class="value" id="score">0</span></div>
+    <div class="info">TIME <span class="value" id="time">30</span></div>
+    <div class="info">BEST <span class="value" id="best">0</span></div>
+  </div>
+
+  <div id="arena" tabindex="0" aria-live="polite" aria-atomic="true">
+    <div class="start-screen" id="startScreen" aria-hidden="false">
+      <h1>⭐ Star Blaster</h1>
+      <p>Catch the stars before time runs out!</p>
+      <div class="controls">
+        <button class="primary" id="startBtn">START GAME 🚀</button>
+        <button id="helpBtn" class="primary" style="background:#2b90ff;box-shadow:0 6px 0 #0f5fb0;">HOW</button>
+      </div>
+      <div class="small">Tap or click the ⭐ stars to score points. Press Space to pause/resume.</div>
+    </div>
+
+    <div class="game-over" id="gameOver" aria-hidden="true">
+      <h1>🎉 Great Job!</h1>
+      <p>Your score:</p>
+      <div class="value" id="finalScore">0</div>
+      <br>
+      <div class="controls">
+        <button class="primary" id="playAgain">PLAY AGAIN 🔄</button>
+        <button id="resetBest" class="primary" style="background:#ffb86b;box-shadow:0 6px 0 #b77d3a;">RESET BEST</button>
+      </div>
+    </div>
+  </div>
+
+  <div style="position:absolute; left:14px; bottom:14px; z-index:12;">
+    <button id="pauseBtn" class="primary" style="padding:10px 14px;background:#6b6b6b;box-shadow:0 6px 0 #3f3f3f;">PAUSE</button>
+  </div>
+</div>
+
+<script>
+let score = 0;
+let timeLeft = 30;
+let best = Number(localStorage.getItem('starBest')) || 0;
+document.getElementById('best').textContent = best;
+
+const arena = document.getElementById('arena');
+const startScreen = document.getElementById('startScreen');
+const gameOverScreen = document.getElementById('gameOver');
+const startBtn = document.getElementById('startBtn');
+const playAgain = document.getElementById('playAgain');
+const pauseBtn = document.getElementById('pauseBtn');
+const resetBestBtn = document.getElementById('resetBest');
+const scoreEl = document.getElementById('score');
+const timeEl = document.getElementById('time');
+const finalScoreEl = document.getElementById('finalScore');
+
+let gameRunning = false;
+let paused = false;
+let countdownTimer = null;
+let spawnTimer = null;
+let spawnInterval = 750;
+const minSpawn = 250;
+const spawnRampStep = 12;
+const initialTime = 30;
+
+let audioCtx = null;
+function clickSound() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = 'sine';
+    o.frequency.value = 700;
+    g.gain.value = 0.05;
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start();
+    o.stop(audioCtx.currentTime + 0.06);
+  } catch (e) { }
+}
+
+function rnd(min, max){ return Math.random() * (max - min) + min; }
+
+function clearStars() {
+  document.querySelectorAll('.star, .pop').forEach(n => n.remove());
+}
+
+function createStar() {
+  if (!gameRunning || paused) return;
+  const sizes = [40,48,54,60,68];
+  const size = sizes[Math.floor(Math.random()*sizes.length)];
+  const star = document.createElement('button');
+  star.className = 'star star-pop';
+  star.setAttribute('aria-label','star');
+  star.style.width = size + 'px';
+  star.style.height = size + 'px';
+  star.style.padding = '0';
+  star.style.background = '#ffd83d';
+  star.style.zIndex = 5;
+  const arenaRect = arena.getBoundingClientRect();
+  const topBarHeight = document.querySelector('.top').getBoundingClientRect().height;
+  const maxX = Math.max(0, arenaRect.width - size);
+  const maxY = Math.max(0, arenaRect.height - size);
+  star.style.left = rnd(6, maxX - 6) + 'px';
+  star.style.top = rnd(topBarHeight * 0.1, maxY - 6) + 'px';
+  star.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    if (!gameRunning || paused) return;
+    score += 10;
+    scoreEl.textContent = score;
+    clickSound();
+    showPoints(parseFloat(star.style.left), parseFloat(star.style.top));
+    star.remove();
+    scheduleStar(0);
+  }, {passive:false});
+  arena.appendChild(star);
+  const life = 1800 + Math.random()*700;
+  setTimeout(()=> { if (star.parentNode) star.remove(); }, life);
+}
+
+function showPoints(x,y){
+  const pop = document.createElement('div');
+  pop.className = 'pop';
+  pop.textContent = '+10 ⭐';
+  pop.style.left = (x + 6) + 'px';
+  pop.style.top = (y - 6) + 'px';
+  pop.style.zIndex = 6;
+  arena.appendChild(pop);
+  setTimeout(()=> pop.remove(), 700);
+}
+
+function scheduleStar(timeout) {
+  clearTimeout(spawnTimer);
+  spawnTimer = setTimeout(() => {
+    if (!gameRunning || paused) return;
+    createStar();
+    spawnInterval = Math.max(minSpawn, spawnInterval - spawnRampStep);
+    scheduleStar(spawnInterval);
+  }, timeout);
+}
+
+function startCountdown() {
+  clearInterval(countdownTimer);
+  countdownTimer = setInterval(() => {
+    if (!gameRunning || paused) return;
+    timeLeft--;
+    timeEl.textContent = timeLeft;
+    if (timeLeft <= 0) endGame();
+  }, 1000);
+}
+
+function startGame(initial=true) {
+  clearStars();
+  score = 0;
+  timeLeft = initialTime;
+  spawnInterval = 750;
+  gameRunning = true;
+  paused = false;
+  scoreEl.textContent = score;
+  timeEl.textContent = timeLeft;
+  startScreen.style.display = 'none';
+  gameOverScreen.style.display = 'none';
+  startScreen.setAttribute('aria-hidden','true');
+  gameOverScreen.setAttribute('aria-hidden','true');
+  pauseBtn.textContent = 'PAUSE';
+  createStar();
+  scheduleStar(spawnInterval);
+  startCountdown();
+}
+
+function togglePause() {
+  if (!gameRunning) return;
+  paused = !paused;
+  pauseBtn.textContent = paused ? 'RESUME' : 'PAUSE';
+  if (!paused) {
+    scheduleStar(spawnInterval);
+  } else {
+    clearTimeout(spawnTimer);
+  }
+}
+
+function endGame() {
+  gameRunning = false;
+  paused = false;
+  clearTimeout(spawnTimer);
+  clearInterval(countdownTimer);
+  clearStars();
+  finalScoreEl.textContent = score;
+  if (score > best) {
+    best = score;
+    localStorage.setItem('starBest', best);
+    document.getElementById('best').textContent = best;
+  }
+  gameOverScreen.style.display = 'flex';
+  gameOverScreen.setAttribute('aria-hidden','false');
+  startScreen.setAttribute('aria-hidden','true');
+}
+
+function resetBest() {
+  localStorage.removeItem('starBest');
+  best = 0;
+  document.getElementById('best').textContent = best;
+}
+
+startBtn.addEventListener('click', ()=> startGame());
+playAgain.addEventListener('click', ()=> startGame(false));
+pauseBtn.addEventListener('click', togglePause);
+resetBestBtn.addEventListener('click', resetBest);
+document.getElementById('helpBtn').addEventListener('click', ()=> {
+  alert('Tap/click stars to score. Space toggles pause. Try to get the highest score!');
+});
+
+window.addEventListener('keydown', (e)=> {
+  if (e.code === 'Space') {
+    e.preventDefault();
+    if (!gameRunning) startGame();
+    else togglePause();
+  } else if (e.key === 'r' || e.key === 'R') {
+    if (!gameRunning) startGame();
+  }
+});
+
+document.addEventListener('visibilitychange', ()=> {
+  if (document.hidden && gameRunning && !paused) {
+    togglePause();
+  }
+});
+
+window.addEventListener('resize', () => {
+  clearTimeout(window._resizeDeb);
+  window._resizeDeb = setTimeout(() => {
+    document.querySelectorAll('.star').forEach(s => {
+      const rect = s.getBoundingClientRect();
+      const ar = arena.getBoundingClientRect();
+      if (rect.right > ar.right || rect.bottom > ar.bottom) s.remove();
+    });
+  }, 120);
+});
+</script>
+</body>
+</html>
