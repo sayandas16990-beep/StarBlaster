@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Star Blaster</string>
+    <string name="app_name">⭐ Star Blaster</string>
+    <string name="app_description">Catch the stars before time runs out! Fast-paced arcade game with increasing difficulty.</string>
 </resources>
